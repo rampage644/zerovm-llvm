@@ -1,3 +1,5 @@
+include ../Makefile.env
+
 # switch realease /debug mode
 # possible values are: r for release, d for debug
 FLAG=r
@@ -16,6 +18,7 @@ LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib \
 -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
 -lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteCore -lclangRewriteFrontend \
 -lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMIRReader -lLLVMInstrumentation \
+-lLLVMMCJIT \
 -lLLVMAsmParser -lLLVMLinker -lLLVMipo -lLLVMVectorize -lLLVMBitWriter -lLLVMBitReader \
 -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils \
 -lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser -lLLVMInterpreter -lLLVMJIT \
@@ -34,20 +37,20 @@ ifeq ($(FLAG), d)
 endif
 
 manifest:
-	python run.py
+	@echo "Generating manifests"
+	@python run.py
 
 $(NAME):
+	@echo "Compiling $(NAME)"
 	@$(CC) -o $(NAME).nexe jit.cpp dump_listener.cpp \
 	-I$(LLVM_DIR)/include -I$(LLVM_BUILD_DIR)/include \
 	-I$(LLVM_BUILD_DIR)/tools/clang/include -I$(LLVM_DIR)/tools/clang/include \
 	$(CFLAGS) $(LDLIBS)
-run:
-	zerovm -PQ $(NAME).manifest
+run: manifest
+	zerovm -PQ $(NAME).manifest || true
 	@cat stdout.jit
 	@echo "-------------------------"
 	@cat stderr.jit
-
-
 clean:
 	@rm $(NAME).nexe 2&>/dev/null || true
 	@rm *.conf *.manifest stdout* stderr* *.log 2&>/dev/null || true

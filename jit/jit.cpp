@@ -23,7 +23,8 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -48,13 +49,38 @@ llvm::sys::Path GetExecutablePath(const char *Argv0) {
   void *MainAddr = (void*) (intptr_t) GetExecutablePath;
   return llvm::sys::Path::GetMainExecutable(Argv0, MainAddr);
 }
+static llvm::ExecutionEngine* createMCJIT(llvm::Module *M, std::string& Error) {
+
+  // Due to the EngineBuilder constructor, it is required to have a Module
+  // in order to construct an ExecutionEngine (i.e. MCJIT)
+  assert(M != 0 && "a non-null Module must be provided to create MCJIT");
+
+  llvm::EngineBuilder EB(M);
+  llvm::ExecutionEngine* EE = EB.setEngineKind(llvm::EngineKind::JIT)
+               .setUseMCJIT(true) /* can this be folded into the EngineKind enum? */
+               .setMCJITMemoryManager(new llvm::SectionMemoryManager)
+               .setErrorStr(&Error)
+               .setOptLevel(llvm::CodeGenOpt::None)
+               .setAllocateGVsWithCode(false) /*does this anything?*/
+               .setCodeModel(llvm::CodeModel::JITDefault)
+               .setRelocationModel(llvm::Reloc::Default)
+               // .setMArch(MArch)
+               .setMCPU(llvm::sys::getHostCPUName())
+               //.setMAttrs(MAttrs)
+               .create();
+  return EE;
+}
 
 static int Execute(llvm::Module *Mod, char * const *envp) {
+  LLVMLinkInMCJIT();
+
   llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmParser();
+  llvm::InitializeNativeTargetAsmPrinter();
 
   std::string Error;
   OwningPtr<llvm::ExecutionEngine> EE(
-    llvm::ExecutionEngine::createJIT(Mod, &Error));
+    createJIT(Mod, Error));
   if (!EE) {  
     llvm::errs() << "unable to make execution engine: " << Error << "\n";
     return 255;
@@ -77,18 +103,6 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
 }
 
 int main(int argc, const char **argv, char * const *envp) {
-  // register x86 and x86-64 arch
-  LLVMInitializeX86TargetInfo();
-  LLVMInitializeX86Target();
-  LLVMInitializeX86TargetInfo();
-  LLVMInitializeX86TargetMC();
-  LLVMInitializeX86AsmPrinter();
-  LLVMInitializeX86AsmParser();
-  LLVMInitializeX86Disassembler();
-  // print available target triplets
-  llvm::TargetRegistry::printRegisteredTargetsForVersion();
-
- 
   void *MainAddr = (void*) (intptr_t) GetExecutablePath;
   llvm::sys::Path Path = GetExecutablePath(argv[0]);
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
