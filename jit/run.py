@@ -33,7 +33,7 @@ name=Node, value=1
 [debug]
 verbosity=4
 [args]
-args={NAME}.nexe main.c -I/include
+args={NAME}.nexe main.c -mllvm -debug-pass=Executions
 """
 
 

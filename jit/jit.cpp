@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -20,18 +22,26 @@
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/FrontendTool/Utils.h"
+#include "llvm/PassManager.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Bitcode/ReaderWriter.h"
+#include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Target/TargetMachine.h"
 
 #include "dump_listener.h"
 
@@ -49,49 +59,32 @@ llvm::sys::Path GetExecutablePath(const char *Argv0) {
   void *MainAddr = (void*) (intptr_t) GetExecutablePath;
   return llvm::sys::Path::GetMainExecutable(Argv0, MainAddr);
 }
-static llvm::ExecutionEngine* createMCJIT(llvm::Module *M, std::string& Error) {
+llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
+  EngineBuilder builder(Module);
+  builder.setErrorStr(&Error);
+  builder.setEngineKind(EngineKind::JIT);
+  builder.setUseMCJIT(true);
+  builder.setJITMemoryManager(new SectionMemoryManager());
+  builder.setOptLevel(llvm::CodeGenOpt::None);
 
-  // Due to the EngineBuilder constructor, it is required to have a Module
-  // in order to construct an ExecutionEngine (i.e. MCJIT)
-  assert(M != 0 && "a non-null Module must be provided to create MCJIT");
-
-  llvm::EngineBuilder EB(M);
-  llvm::ExecutionEngine* EE = EB.setEngineKind(llvm::EngineKind::JIT)
-               .setUseMCJIT(true) /* can this be folded into the EngineKind enum? */
-               .setMCJITMemoryManager(new llvm::SectionMemoryManager)
-               .setErrorStr(&Error)
-               .setOptLevel(llvm::CodeGenOpt::None)
-               .setAllocateGVsWithCode(false) /*does this anything?*/
-               .setCodeModel(llvm::CodeModel::JITDefault)
-               .setRelocationModel(llvm::Reloc::Default)
-               // .setMArch(MArch)
-               .setMCPU(llvm::sys::getHostCPUName())
-               //.setMAttrs(MAttrs)
-               .create();
-  return EE;
+  return builder.create();
 }
 
 static int Execute(llvm::Module *Mod, char * const *envp) {
-  LLVMLinkInMCJIT();
-
   llvm::InitializeNativeTarget();
-  llvm::InitializeNativeTargetAsmParser();
-  llvm::InitializeNativeTargetAsmPrinter();
+  LLVMLinkInMCJIT();
 
   std::string Error;
   OwningPtr<llvm::ExecutionEngine> EE(
-    createJIT(Mod, Error));
+    createMCJIT (Mod, Error));
   if (!EE) {  
     llvm::errs() << "unable to make execution engine: " << Error << "\n";
     return 255;
   }
 
-  CustomJITEventListener jit_event_listner;
-  EE->RegisterJITEventListener(&jit_event_listner);
-
-  llvm::Function *EntryFn = Mod->getFunction("main");
+  llvm::Function *EntryFn = Mod->getFunction("return_3");
   if (!EntryFn) {
-    llvm::errs() << "'main' function not found in module.\n";
+    llvm::errs() << "'return_3' function not found in module.\n";
     return 255;
   }
 
@@ -101,8 +94,66 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
 
   return EE->runFunctionAsMain(EntryFn, Args, envp);
 }
+static int Compile(llvm::Module* m) {
+  llvm::InitializeNativeTarget();
+
+  std::string Error;
+  llvm::PassManager PM;
+  const llvm::Target* Trgt = llvm::TargetRegistry::lookupTarget (
+              llvm::sys::getDefaultTargetTriple (), Error);
+  if (!Trgt) {
+      llvm::errs () << Error;
+      return 1;
+  }
+  // Package up features to be passed to target/subtarget
+  std::string FeaturesStr;
+  if (MAttrs.size()) {
+    llvm::SubtargetFeatures Features;
+    for (unsigned i = 0; i != MAttrs.size(); ++i)
+      Features.AddFeature(MAttrs[i]);
+    FeaturesStr = Features.getString();
+  }
+  llvm::TargetOptions Options;
+  llvm::TargetMachine* TM = Trgt->createTargetMachine (
+              llvm::sys::getDefaultTargetTriple (),
+              MCPU, FeaturesStr,
+              Options,
+              RelocModel, CMModel,
+              CodeGenOpt::None);
+  if (!TM) {
+      llvm::errs () << "Can't allocate target machine!";
+      return 1;
+  }
+
+
+  PM.add(new DataLayout(*TM->getDataLayout()));
+
+  // The RuntimeDyld will take ownership of this shortly
+  OwningPtr<ObjectBufferStream> Buffer(new ObjectBufferStream());
+
+  // Turn the machine code intermediate representation into bytes in memory
+  // that may be executed.
+  llvm::MCContext* Ctx = 0;
+  if (TM->addPassesToEmitMC(PM, Ctx, Buffer->getOStream(), false)) {
+    report_fatal_error("Target does not support MC emission!");
+  }
+
+  // Initialize passes.
+  PM.run(*m);
+  // Flush the output buffer to get the generated code into memory
+  Buffer->flush();
+  llvm::outs () << "start=" << Buffer->getBufferStart ()
+                << " size=" << Buffer->getBufferSize () << "\n";
+
+  return 0;
+}
 
 int main(int argc, const char **argv, char * const *envp) {
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
+
   void *MainAddr = (void*) (intptr_t) GetExecutablePath;
   llvm::sys::Path Path = GetExecutablePath(argv[0]);
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
@@ -175,20 +226,19 @@ int main(int argc, const char **argv, char * const *envp) {
     Clang.getHeaderSearchOpts().ResourceDir =
       CompilerInvocation::GetResourcesPath(argv[0], MainAddr);
 
+#ifndef NDEBUG
+  llvm::DebugFlag = false;
+#endif
   // Create and execute the frontend to generate an LLVM bitcode module.
-  OwningPtr<CodeGenAction> Act(new EmitLLVMAction());
+  OwningPtr<CodeGenAction> Act(new EmitLLVMOnlyAction());
   if (!Clang.ExecuteAction(*Act))
     return 1;
 
   int Res = 255;
   if (llvm::Module *Module = Act->takeModule())
-  {
-    Res = Execute(Module, envp);
-  }
-
+    Res = Execute (Module, envp);
   // Shutdown.
-
   llvm::llvm_shutdown();
 
-  return Res;
+  return 0;
 }
