@@ -21,11 +21,11 @@ void CustomJITEventListener::NotifyFunctionEmitted(const llvm::Function &fn,
   }
 }
 void CustomJITEventListener::NotifyFreeingMachineCode(void *addr) {
-  llvm::errs() << "function freed" << addr;
+  llvm::errs() << "function freed" << addr << "\n";
 }
 void CustomJITEventListener::NotifyObjectEmitted(const llvm::ObjectImage &Obj) {
-  llvm::errs() << "obj emitted";
+  llvm::errs() << "obj emitted" << (uint8_t*)Obj.getData().data() << " " << Obj.getData().size() << "\n";
 }
 void CustomJITEventListener::NotifyFreeingObject(const llvm::ObjectImage &Obj) {
-  llvm::errs() << "obj freed";
+  llvm::errs() << "obj freed" << "\n";
 }

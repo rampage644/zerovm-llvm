@@ -34,6 +34,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/SubtargetFeature.h"
+#include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
@@ -44,6 +45,11 @@
 #include "llvm/Target/TargetMachine.h"
 
 #include "dump_listener.h"
+
+#include "llvm/Bitcode/NaCl/NaClReaderWriter.h"  // @LOCALMOD
+#include "llvm/IRReader/IRReader.h"  // @LOCALMOD
+#include "llvm/Transforms/NaCl.h"
+#include "llvm/Analysis/NaCl.h"
 
 using namespace clang;
 using namespace clang::driver;
@@ -66,6 +72,7 @@ llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
   builder.setUseMCJIT(true);
   builder.setJITMemoryManager(new SectionMemoryManager());
   builder.setOptLevel(llvm::CodeGenOpt::None);
+  builder.setMArch("x86-64");
 
   return builder.create();
 }
@@ -82,9 +89,12 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
     return 255;
   }
 
-  llvm::Function *EntryFn = Mod->getFunction("return_3");
+  CustomJITEventListener listener;
+  EE->RegisterJITEventListener(&listener);
+
+  llvm::Function *EntryFn = Mod->getFunction("main");
   if (!EntryFn) {
-    llvm::errs() << "'return_3' function not found in module.\n";
+    llvm::errs() << "'main' function not found in module.\n";
     return 255;
   }
 
@@ -92,6 +102,7 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
   std::vector<std::string> Args;
   Args.push_back(Mod->getModuleIdentifier());
 
+  EE->finalizeObject();
   return EE->runFunctionAsMain(EntryFn, Args, envp);
 }
 static int Compile(llvm::Module* m) {
@@ -99,8 +110,15 @@ static int Compile(llvm::Module* m) {
 
   std::string Error;
   llvm::PassManager PM;
+  std::string MArch = "x86-64";
+  std::string TargetTriple = "x86_64-pc-nacl";
+  llvm::Triple TheTriple;
+
+  m->setTargetTriple(llvm::Triple::normalize(TargetTriple));
+  TheTriple = Triple(m->getTargetTriple());
+
   const llvm::Target* Trgt = llvm::TargetRegistry::lookupTarget (
-              llvm::sys::getDefaultTargetTriple (), Error);
+                               MArch, TheTriple, Error);
   if (!Trgt) {
       llvm::errs () << Error;
       return 1;
@@ -125,26 +143,63 @@ static int Compile(llvm::Module* m) {
       return 1;
   }
 
+  llvm::outs() << "TM: " <<
+                  llvm::sys::getDefaultTargetTriple() << " " <<
+                  Trgt->getName() << " " << Trgt->getShortDescription() << " " <<
+                  TM->getTargetCPU() << " " << TM->getTargetTriple() << "\n";
 
+//  PNaClABIErrorReporter ABIErrorReporter; // @LOCALMOD
+//  FunctionPass *FunctionVerifyPass = NULL;
+//  FunctionVerifyPass = createPNaClABIVerifyFunctionsPass(&ABIErrorReporter);
+//  PM.add(FunctionVerifyPass);
+
+//  // Add the intrinsic resolution pass. It assumes ABI-conformant code.
+//  PM.add(createResolvePNaClIntrinsicsPass());
+
+  TM->addAnalysisPasses(PM);
   PM.add(new DataLayout(*TM->getDataLayout()));
 
-  // The RuntimeDyld will take ownership of this shortly
-  OwningPtr<ObjectBufferStream> Buffer(new ObjectBufferStream());
+  llvm::raw_fd_ostream OS ("/dev/main.o", Error, llvm::raw_fd_ostream::F_Binary);
 
+  if (OS.has_error()) {
+    llvm::errs() << Error << '\n';
+    return 1;
+  }
   // Turn the machine code intermediate representation into bytes in memory
   // that may be executed.
-  llvm::MCContext* Ctx = 0;
-  if (TM->addPassesToEmitMC(PM, Ctx, Buffer->getOStream(), false)) {
-    report_fatal_error("Target does not support MC emission!");
+//  llvm::MCContext* Ctx = 0;
+//  if (TM->addPassesToEmitMC(PM, Ctx, of, false)) {
+//    report_fatal_error("Target does not support MC emission!");
+//  }
+
+  llvm::formatted_raw_ostream FOS(OS);
+  if (TM->addPassesToEmitFile(PM, FOS, TargetMachine::CGFT_ObjectFile)) {
+    errs() << ": target does not support generation of this"
+           << " file type!\n";
+    return 1;
   }
 
   // Initialize passes.
   PM.run(*m);
   // Flush the output buffer to get the generated code into memory
-  Buffer->flush();
-  llvm::outs () << "start=" << Buffer->getBufferStart ()
-                << " size=" << Buffer->getBufferSize () << "\n";
+  FOS.flush();
+  OS.close();
+  return 0;
+}
 
+static int WriteBitcode(llvm::Module* Module) {
+  std::string Error;
+  llvm::raw_fd_ostream OS ("/dev/main.o", Error, llvm::raw_fd_ostream::F_Binary);
+
+  if (OS.has_error()) {
+    llvm::errs() << Error << '\n';
+    return 1;
+  }
+
+//  llvm::NaClWriteBitcodeToFile(Module, OS);
+  llvm::WriteBitcodeToFile(Module, OS);
+
+  OS.close();
   return 0;
 }
 
@@ -152,7 +207,7 @@ int main(int argc, const char **argv, char * const *envp) {
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
+//  llvm::InitializeAllAsmParsers();
 
   void *MainAddr = (void*) (intptr_t) GetExecutablePath;
   llvm::sys::Path Path = GetExecutablePath(argv[0]);
@@ -230,15 +285,18 @@ int main(int argc, const char **argv, char * const *envp) {
   llvm::DebugFlag = false;
 #endif
   // Create and execute the frontend to generate an LLVM bitcode module.
-  OwningPtr<CodeGenAction> Act(new EmitLLVMOnlyAction());
+  OwningPtr<CodeGenAction> Act(new EmitBCAction());
   if (!Clang.ExecuteAction(*Act))
     return 1;
 
-  int Res = 255;
-  if (llvm::Module *Module = Act->takeModule())
-    Res = Execute (Module, envp);
+  int r = 0;
+  if (llvm::Module *Module = Act->takeModule()) {
+    r = Execute (Module, envp);
+//    Compile(Module);
+//      WriteBitcode(Module);
+  }
   // Shutdown.
   llvm::llvm_shutdown();
 
-  return 0;
+  return r;
 }
