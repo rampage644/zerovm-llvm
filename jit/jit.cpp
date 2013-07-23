@@ -30,7 +30,7 @@
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
-#include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/SubtargetFeature.h"
@@ -69,7 +69,7 @@ llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
   EngineBuilder builder(Module);
   builder.setErrorStr(&Error);
   builder.setEngineKind(EngineKind::JIT);
-  builder.setUseMCJIT(true);
+  builder.setUseMCJIT(false);
   builder.setJITMemoryManager(new SectionMemoryManager());
   builder.setOptLevel(llvm::CodeGenOpt::None);
   builder.setMArch("x86-64");
@@ -79,7 +79,7 @@ llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
 
 static int Execute(llvm::Module *Mod, char * const *envp) {
   llvm::InitializeNativeTarget();
-  LLVMLinkInMCJIT();
+  LLVMLinkInJIT();
 
   std::string Error;
   OwningPtr<llvm::ExecutionEngine> EE(
@@ -110,6 +110,7 @@ static int Compile(llvm::Module* m) {
 
   std::string Error;
   llvm::PassManager PM;
+  llvm::FunctionPassManager FPM(m);
   std::string MArch = "x86-64";
   std::string TargetTriple = "x86_64-pc-nacl";
   llvm::Triple TheTriple;
@@ -143,11 +144,6 @@ static int Compile(llvm::Module* m) {
       return 1;
   }
 
-  llvm::outs() << "TM: " <<
-                  llvm::sys::getDefaultTargetTriple() << " " <<
-                  Trgt->getName() << " " << Trgt->getShortDescription() << " " <<
-                  TM->getTargetCPU() << " " << TM->getTargetTriple() << "\n";
-
 //  PNaClABIErrorReporter ABIErrorReporter; // @LOCALMOD
 //  FunctionPass *FunctionVerifyPass = NULL;
 //  FunctionVerifyPass = createPNaClABIVerifyFunctionsPass(&ABIErrorReporter);
@@ -157,11 +153,14 @@ static int Compile(llvm::Module* m) {
 //  PM.add(createResolvePNaClIntrinsicsPass());
 
   TM->addAnalysisPasses(PM);
+  TM->addAnalysisPasses(FPM);
   PM.add(new DataLayout(*TM->getDataLayout()));
+  FPM.add(new DataLayout(*TM->getDataLayout()));
 
-  llvm::raw_fd_ostream OS ("/dev/main.o", Error, llvm::raw_fd_ostream::F_Binary);
+  llvm::raw_fd_ostream OSModule ("/dev/main-module.o", Error, llvm::raw_fd_ostream::F_Binary);
+  llvm::raw_fd_ostream OSFunction ("/dev/main-function.o", Error, llvm::raw_fd_ostream::F_Binary);
 
-  if (OS.has_error()) {
+  if (OSFunction.has_error() || OSModule.has_error()) {
     llvm::errs() << Error << '\n';
     return 1;
   }
@@ -172,8 +171,13 @@ static int Compile(llvm::Module* m) {
 //    report_fatal_error("Target does not support MC emission!");
 //  }
 
-  llvm::formatted_raw_ostream FOS(OS);
-  if (TM->addPassesToEmitFile(PM, FOS, TargetMachine::CGFT_ObjectFile)) {
+  llvm::MCContext* Ctx = 0;
+  if (TM->addPassesToEmitMC(PM, Ctx, OSModule)) {
+    errs() << ": target does not support generation of this"
+           << " file type!\n";
+    return 1;
+  }
+  if (TM->addPassesToEmitMC(FPM, Ctx, OSFunction)) {
     errs() << ": target does not support generation of this"
            << " file type!\n";
     return 1;
@@ -181,9 +185,11 @@ static int Compile(llvm::Module* m) {
 
   // Initialize passes.
   PM.run(*m);
+  FPM.run(*m->getFunction("main"));
   // Flush the output buffer to get the generated code into memory
-  FOS.flush();
-  OS.close();
+
+  OSModule.close();
+  OSFunction.close();
   return 0;
 }
 
@@ -282,7 +288,7 @@ int main(int argc, const char **argv, char * const *envp) {
       CompilerInvocation::GetResourcesPath(argv[0], MainAddr);
 
 #ifndef NDEBUG
-  llvm::DebugFlag = false;
+  llvm::DebugFlag = true;
 #endif
   // Create and execute the frontend to generate an LLVM bitcode module.
   OwningPtr<CodeGenAction> Act(new EmitBCAction());
@@ -291,8 +297,8 @@ int main(int argc, const char **argv, char * const *envp) {
 
   int r = 0;
   if (llvm::Module *Module = Act->takeModule()) {
-    r = Execute (Module, envp);
-//    Compile(Module);
+//    r = Execute (Module, envp);
+    Compile(Module);
 //      WriteBitcode(Module);
   }
   // Shutdown.
