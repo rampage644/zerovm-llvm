@@ -36,7 +36,7 @@ name=Node, value=1
 [debug]
 verbosity=4
 [args]
-args={NAME}.nexe main.c -mllvm -debug-pass=Executions
+args={NAME}.nexe main.cpp -mllvm -debug
 """
 
 

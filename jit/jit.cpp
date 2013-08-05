@@ -29,8 +29,8 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
-#include "llvm/ExecutionEngine/JIT.h"
+#include "llvm/ExecutionEngine/ZMemoryManager.h"
+#include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/MC/SubtargetFeature.h"
@@ -53,6 +53,7 @@
 
 using namespace clang;
 using namespace clang::driver;
+using namespace llvm;
 
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
@@ -65,12 +66,13 @@ llvm::sys::Path GetExecutablePath(const char *Argv0) {
   void *MainAddr = (void*) (intptr_t) GetExecutablePath;
   return llvm::sys::Path::GetMainExecutable(Argv0, MainAddr);
 }
+
 llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
   EngineBuilder builder(Module);
   builder.setErrorStr(&Error);
   builder.setEngineKind(EngineKind::JIT);
-  builder.setUseMCJIT(false);
-  builder.setJITMemoryManager(new SectionMemoryManager());
+  builder.setUseMCJIT(true);
+  builder.setJITMemoryManager(new ZMemoryManager());
   builder.setOptLevel(llvm::CodeGenOpt::None);
   builder.setMArch("x86-64");
 
@@ -78,8 +80,9 @@ llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
 }
 
 static int Execute(llvm::Module *Mod, char * const *envp) {
+  Mod->dump();
   llvm::InitializeNativeTarget();
-  LLVMLinkInJIT();
+  LLVMLinkInMCJIT();
 
   std::string Error;
   OwningPtr<llvm::ExecutionEngine> EE(
@@ -101,8 +104,8 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
   // FIXME: Support passing arguments.
   std::vector<std::string> Args;
   Args.push_back(Mod->getModuleIdentifier());
-
   EE->finalizeObject();
+
   return EE->runFunctionAsMain(EntryFn, Args, envp);
 }
 static int Compile(llvm::Module* m) {
@@ -144,32 +147,20 @@ static int Compile(llvm::Module* m) {
       return 1;
   }
 
-//  PNaClABIErrorReporter ABIErrorReporter; // @LOCALMOD
-//  FunctionPass *FunctionVerifyPass = NULL;
-//  FunctionVerifyPass = createPNaClABIVerifyFunctionsPass(&ABIErrorReporter);
-//  PM.add(FunctionVerifyPass);
-
-//  // Add the intrinsic resolution pass. It assumes ABI-conformant code.
-//  PM.add(createResolvePNaClIntrinsicsPass());
-
   TM->addAnalysisPasses(PM);
   TM->addAnalysisPasses(FPM);
   PM.add(new DataLayout(*TM->getDataLayout()));
   FPM.add(new DataLayout(*TM->getDataLayout()));
 
-  llvm::raw_fd_ostream OSModule ("/dev/main-module.o", Error, llvm::raw_fd_ostream::F_Binary);
-  llvm::raw_fd_ostream OSFunction ("/dev/main-function.o", Error, llvm::raw_fd_ostream::F_Binary);
+  llvm::raw_fd_ostream OSModule ("/dev/main-module.o",
+                                 Error, llvm::raw_fd_ostream::F_Binary);
+  llvm::raw_fd_ostream OSFunction ("/dev/main-function.o",
+                                   Error, llvm::raw_fd_ostream::F_Binary);
 
   if (OSFunction.has_error() || OSModule.has_error()) {
     llvm::errs() << Error << '\n';
     return 1;
   }
-  // Turn the machine code intermediate representation into bytes in memory
-  // that may be executed.
-//  llvm::MCContext* Ctx = 0;
-//  if (TM->addPassesToEmitMC(PM, Ctx, of, false)) {
-//    report_fatal_error("Target does not support MC emission!");
-//  }
 
   llvm::MCContext* Ctx = 0;
   if (TM->addPassesToEmitMC(PM, Ctx, OSModule)) {
@@ -183,10 +174,8 @@ static int Compile(llvm::Module* m) {
     return 1;
   }
 
-  // Initialize passes.
   PM.run(*m);
   FPM.run(*m->getFunction("main"));
-  // Flush the output buffer to get the generated code into memory
 
   OSModule.close();
   OSFunction.close();
@@ -287,19 +276,17 @@ int main(int argc, const char **argv, char * const *envp) {
     Clang.getHeaderSearchOpts().ResourceDir =
       CompilerInvocation::GetResourcesPath(argv[0], MainAddr);
 
-#ifndef NDEBUG
-  llvm::DebugFlag = true;
-#endif
+
   // Create and execute the frontend to generate an LLVM bitcode module.
   OwningPtr<CodeGenAction> Act(new EmitBCAction());
   if (!Clang.ExecuteAction(*Act))
     return 1;
 
-  int r = 0;
+  int r = -1;
   if (llvm::Module *Module = Act->takeModule()) {
-//    r = Execute (Module, envp);
-    Compile(Module);
-//      WriteBitcode(Module);
+    r = Execute (Module, envp);
+//    r = Compile(Module);
+//    r = WriteBitcode(Module);
   }
   // Shutdown.
   llvm::llvm_shutdown();
