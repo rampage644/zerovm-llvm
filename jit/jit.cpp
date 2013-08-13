@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <typeinfo>
 
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -54,6 +55,13 @@
 using namespace clang;
 using namespace clang::driver;
 using namespace llvm;
+
+namespace __cxxabiv1 {
+class __fundamental_type_info : public std::type_info
+{
+virtual ~__fundamental_type_info() { }
+};
+}
 
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
@@ -106,7 +114,10 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
   Args.push_back(Mod->getModuleIdentifier());
   EE->finalizeObject();
 
-  return EE->runFunctionAsMain(EntryFn, Args, envp);
+  typedef int (*func_ptr)();
+  func_ptr func = (func_ptr)EE->getPointerToFunction(EntryFn);
+  return func();
+//  return EE->runFunctionAsMain(EntryFn, Args, envp);
 }
 static int Compile(llvm::Module* m) {
   llvm::InitializeNativeTarget();
@@ -175,7 +186,7 @@ static int Compile(llvm::Module* m) {
   }
 
   PM.run(*m);
-  FPM.run(*m->getFunction("main"));
+//  FPM.run(*m->getFunction("main"));
 
   OSModule.close();
   OSFunction.close();
@@ -284,8 +295,8 @@ int main(int argc, const char **argv, char * const *envp) {
 
   int r = -1;
   if (llvm::Module *Module = Act->takeModule()) {
-    r = Execute (Module, envp);
-//    r = Compile(Module);
+//    r = Execute (Module, envp);
+    r = Compile(Module);
 //    r = WriteBitcode(Module);
   }
   // Shutdown.

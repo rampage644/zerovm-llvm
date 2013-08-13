@@ -24,7 +24,7 @@ LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib -L$(CLANG_BUILD_DIR)/$(OUTPUT_DIR)/
 -lLLVMMC -lLLVMMCDisassembler -lLLVMMCParser -lLLVMCodeGen \
 -lrt -ldl -lm
 
-CXXFLAGS+=-fno-rtti -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 # add -g if debugging
 ifeq ($(FLAG), d)
   CXXFLAGS+=-g
@@ -38,6 +38,7 @@ OBJECTS := jit.o dump_listener.o
 $(NAME).nexe: $(OBJECTS)
 	@echo "Compiling $(NAME).nexe"
 	@$(CXX) -o $(NAME).nexe $(OBJECTS) $(CXXFLAGS) $(LDLIBS)
+
 
 	
 

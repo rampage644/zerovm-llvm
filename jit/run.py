@@ -17,6 +17,7 @@ Channel = {ABS_PATH}/stderr.{NAME}, /dev/stderr, 0, 0, 0, 0, 9999999, 9999999
 Channel = {ABS_PATH}/main-module.o, /dev/main-module.o, 3, 0, 0, 0, 99999999, 99999999
 Channel = {ABS_PATH}/main-function.o, /dev/main-function.o, 3, 0, 0, 0, 99999999, 99999999
 Channel = {ABS_PATH}/nvram.{NAME}.conf, /dev/nvram, 0, 1, 999999, 999999, 0, 0
+Channel = {ABS_PATH}/{NAME}.nexe, /dev/self, 3, 0, 9999999999, 9999999999, 0, 0
 
 Channel = {ABS_PATH}/mount/fs.tar, /dev/fs, 3, 1, 99999999, 99999999, 0, 0
 

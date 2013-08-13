@@ -14,6 +14,7 @@ Channel = /dev/null, /dev/stdin, 0, 0, 999999, 999999, 0, 0
 Channel = {ABS_PATH}/stdout.{NAME}, /dev/stdout, 0, 0, 0, 0, 999999, 999999
 Channel = {ABS_PATH}/stderr.{NAME}, /dev/stderr, 0, 0, 0, 0, 9999999, 9999999
 Channel = {ABS_PATH}/nvram.{NAME}.conf, /dev/nvram, 0, 1, 999999, 999999, 0, 0
+Channel = {ABS_PATH}/{NAME}.nexe, /dev/self, 3, 1, 999999999999, 999999999999, 0, 0
 
 Version = 20130611
 Program = {ABS_PATH}/{NAME}.nexe
@@ -24,12 +25,13 @@ Timeout = 3600
 """
 
 NVRAM_TMPLT = """
+[fstab]
 [env]
 name=Node, value=1
 [debug]
 verbosity=4
 [args]
-args={NAME}.nexe
+args={NAME}.nexe --gtest_filter=ZMemoryManagerTest.*
 """
 
 
