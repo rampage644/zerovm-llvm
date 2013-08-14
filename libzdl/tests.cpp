@@ -1,5 +1,7 @@
 #include <dlfcn.h>
 
+
+
 #include "gtest/gtest.h"
 
 extern "C" {
@@ -11,6 +13,8 @@ int five() {
   return 5;
 }
 }
+
+
 
 
 TEST(zdlTest, BasicOpenCloseTest) {
@@ -51,6 +55,22 @@ TEST(zdlTest, SymbolsLookupTest) {
   EXPECT_EQ(dlsym(handle1, "____sdasd____"), (void*)NULL);
 
   EXPECT_EQ(dlclose(handle1), 0);
+}
+
+TEST(zdlTest, GLibcExtensionsTest) {
+  Dl_info info;
+  int res = dladdr((void*)plus_seven, &info);
+  EXPECT_EQ(res, 0);
+  EXPECT_EQ(info.dli_saddr, (char*)NULL);
+  EXPECT_EQ(info.dli_sname, (char*)NULL);
+
+  void *handle1 = dlopen(NULL, RTLD_NOW);
+  EXPECT_NE(handle1, (void*)NULL);
+
+  const char version[] = "2.0.0";
+  EXPECT_EQ(dlsym(handle1, "plus_seven"), dlvsym(handle1, "plus_seven", version));
+  EXPECT_EQ(dlsym(handle1, "five"), dlvsym(handle1, "five", version));
+  EXPECT_EQ(dlsym(handle1, "printf"), dlvsym(handle1, "printf", version));
 
 }
 

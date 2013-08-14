@@ -21,12 +21,10 @@ static int handleSelf = 0;
 /// last error 
 static char error[256] = "";
 
-/// read sym section indicator
-static int isLoaded = false;
-
 /// ELF-file reader object
 static ELFIO::elfio reader;
 
+extern "C" {
 
 void *dlopen(const char *filename, int flag)
 {
@@ -98,12 +96,29 @@ void *dlsym(void *handle, const char *symbol)
 int dlclose(void *handle)
 {
   if (handle == (void*)&handleSelf)
-		// success
+  {
+    // success
+    // TODO: clean or remove reader
 		return 0;
+  }
 
 	// else failure
   strncpy(error, "Current handle isn't opened.", sizeof(error));
 	return -1; 
 }
 
+// glibc extension
+// have to define these to avoid undefined references to them
+int dladdr(const void *addr, Dl_info *info)
+{
+  info->dli_sname = NULL;
+  info->dli_saddr = NULL;
+  return 0;
+}
+void *dlvsym(void *handle, const char *symbol, const char *version)
+{
+  // no dynamic linking - no versioning
+  return dlsym(handle, symbol);
+}
 
+} // extern "C
