@@ -27,12 +27,18 @@ $(NAME).a: $(OBJECTS)
 	@$(AR) rcs $(NAME).a $(OBJECTS) 
 
 tests: tests.o $(NAME).a
-	@$(CXX) -o tests.nexe tests.o -lzdl -lgtest -L.
+	@$(CXX) -o tests.nexe tests.o -lzdl -lgtest -lbfd -liberty -L.
 	@python run.py
 	@zerovm -PQst tests.manifest || true
 	@cat stdout.tests
 
 debug: tests
 	@zgdb tests.nexe
+
+clean:
+	@rm *.o *.nexe *.a *.conf *.log std* *.manifest
+
+install:
+	install -D -m 0755 $(NAME).a $(ZVM_PREFIX_ABSPATH)/x86_64-nacl/lib
 	
 
