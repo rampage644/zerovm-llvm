@@ -12,22 +12,25 @@ ZEROVM=${ZVM_PREFIX_ABSPATH}/bin/zerovm
 
 NAME=libzdl
 
-OBJECTS := zdl.o
+OBJECTS := zdl.o dummy_symbols_libc.o
 
 all: tests
 
 zdl.o: zdl.c
-	@$(CXX) -c -o $@ zdl.c $(CXXFLAGS)
+	$(CC) -c -o $@ zdl.c
+
+dummy_symbols_libc.o: dummy_symbols_libc.c
+	$(CC) -c -o $@ dummy_symbols_libc.c	-O0
 
 tests.o: tests.cpp
-	@$(CXX) -c -o tests.o tests.cpp $(CXXFLAGS)	-I.
+	$(CXX) -c -o tests.o tests.cpp $(CXXFLAGS)	-I.
 
 $(NAME).a: $(OBJECTS)
 	@echo "Compiling $(NAME).a"
-	@$(AR) rcs $(NAME).a $(OBJECTS) 
+	$(AR) rcs $(NAME).a $(OBJECTS) 
 
 tests: tests.o $(NAME).a
-	@$(CXX) -o tests.nexe tests.o -lzdl -lgtest -lbfd -liberty -L.
+	$(CXX) -o tests.nexe tests.o -lzdl -lgtest -lbfd -liberty -L. 
 	@python run.py
 	@zerovm -PQst tests.manifest || true
 	@cat stdout.tests
