@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -81,6 +82,10 @@ void *dlopen(const char *filename, int flag)
       // try to load ELF image
       bfd_init();
       file = bfd_openr(imageFile, target);
+      if (!file) {
+        strncpy(error, "Couldn't open image file.", sizeof(error));
+        return NULL;
+      }
       char** matching;
       bfd_check_format (file, bfd_archive);
       bfd_check_format_matches (file, bfd_object, &matching);
