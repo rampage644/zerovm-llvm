@@ -8,6 +8,7 @@ include ../Makefile.env
 
 
 LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib -L$(CLANG_BUILD_DIR)/$(OUTPUT_DIR)/lib \
+-L../libzdl -Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
 -lclangFrontendTool -lclangFrontend -lclangSerialization -lclangDriver -lclangCodeGen -lclangParse \
 -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
 -lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
@@ -22,7 +23,7 @@ LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib -L$(CLANG_BUILD_DIR)/$(OUTPUT_DIR)/
 -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis -lLLVMTarget \
 -lLLVMObject -lLLVMCore -lLLVMSupport -lLLVMX86AsmParser -lLLVMX86Disassembler \
 -lLLVMMC -lLLVMMCDisassembler -lLLVMMCParser -lLLVMCodeGen \
--lrt -ldl -lm
+-lrt -lzdl -lm -lbfd -liberty 
 
 CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 # add -g if debugging
@@ -37,7 +38,7 @@ OBJECTS := jit.o dump_listener.o
 
 $(NAME).nexe: $(OBJECTS)
 	@echo "Compiling $(NAME).nexe"
-	@$(CXX) -o $(NAME).nexe $(OBJECTS) $(CXXFLAGS) $(LDLIBS)
+	$(CXX) -o $(NAME).nexe $(OBJECTS) $(CXXFLAGS) $(LDLIBS) -v
 
 
 	

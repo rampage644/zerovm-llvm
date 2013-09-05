@@ -88,7 +88,6 @@ llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
 }
 
 static int Execute(llvm::Module *Mod, char * const *envp) {
-  Mod->dump();
   llvm::InitializeNativeTarget();
   LLVMLinkInMCJIT();
 
@@ -295,8 +294,8 @@ int main(int argc, const char **argv, char * const *envp) {
 
   int r = -1;
   if (llvm::Module *Module = Act->takeModule()) {
-//    r = Execute (Module, envp);
-    r = Compile(Module);
+    r = Execute (Module, envp);
+//    r = Compile(Module);
 //    r = WriteBitcode(Module);
   }
   // Shutdown.
