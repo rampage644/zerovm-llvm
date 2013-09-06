@@ -85,5 +85,6 @@ clean:
 
 install:
 	install -D -m 0755 $(NAME).a $(ZVM_PREFIX_ABSPATH)/x86_64-nacl/lib
+	install -D -m 0644 jit.h $(ZVM_PREFIX_ABSPATH)/x86_64-nacl/include
 	
 
