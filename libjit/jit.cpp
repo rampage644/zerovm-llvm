@@ -49,7 +49,14 @@ using namespace clang::driver;
 using namespace llvm;
 
 static OwningPtr<llvm::ExecutionEngine> EE;
-static llvm::LLVMContext Ctx;
+static OwningPtr<llvm::LLVMContext> Ctx;
+
+extern "C" void shutdown()
+{
+  EE.reset();
+  llvm::llvm_shutdown();
+  Ctx.reset();
+}
 
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
@@ -84,6 +91,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmPrinters();
+    Ctx.reset(new llvm::LLVMContext());
 
     llvm::sys::Path Path = GetExecutablePath("clang");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
@@ -148,7 +156,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
       return NULL;
 
     // Create and execute the frontend to generate an LLVM bitcode module.
-    OwningPtr<CodeGenAction> Act(new EmitLLVMOnlyAction(&Ctx));
+    OwningPtr<CodeGenAction> Act(new EmitLLVMOnlyAction(Ctx.get()));
     if (!Clang.ExecuteAction(*Act))
       return NULL;
 
