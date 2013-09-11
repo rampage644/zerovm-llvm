@@ -96,7 +96,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
     llvm::sys::Path Path = GetExecutablePath("clang");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
     TextDiagnosticPrinter *DiagClient =
-      new TextDiagnosticPrinter(llvm::outs(), &*DiagOpts);
+      new TextDiagnosticPrinter(llvm::nulls(), &*DiagOpts);
 
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagClient);
@@ -167,7 +167,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
       std::string Error;
       EE.reset(createMCJIT (Module, Error));
       if (!EE) {
-        llvm::outs() << "unable to make execution engine: " << Error << "\n";
+        llvm::nulls() << "unable to make execution engine: " << Error << "\n";
         return NULL;
       }
       // compile module, apply memory permissions
