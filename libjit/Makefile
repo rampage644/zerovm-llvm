@@ -36,7 +36,7 @@ CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC
 -I$(LLVM_BUILD_DIR)/tools/clang/include -I$(ZVM_PREFIX_ABSPATH)/include
 
 LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib -L$(CLANG_BUILD_DIR)/$(OUTPUT_DIR)/lib \
--L../libzdl -ljit -Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
+-L../libzdl -Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
 -lclangFrontendTool -lclangFrontend -lclangSerialization -lclangDriver -lclangCodeGen -lclangParse \
 -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
 -lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
@@ -70,7 +70,7 @@ $(NAME).a: $(OBJECTS)
 tests.o: tests.cpp
 	$(CXX) -c -o tests.o tests.cpp $(CXXFLAGS)	-I.
 tests.nexe: tests.o $(NAME).a
-	$(CXX) -o $@ $< $(LDLIBS) -L.
+	$(CXX) -o $@ $< libjit.a $(LDLIBS) -L. 
 tests: tests.nexe $(NAME).a
 	@python run.py
 	@zerovm -PQst tests.manifest || true
