@@ -9,16 +9,14 @@ LDLIBS=-ljit -Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive
 -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
 -lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
 -lclangARCMigrate \
--lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMIRReader -lLLVMInstrumentation \
+-lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMInstrumentation \
 -lLLVMAsmParser -lLLVMLinker -lLLVMipo -lLLVMVectorize -lLLVMBitWriter -lLLVMBitReader \
 -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils \
--lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser -lLLVMInterpreter  \
--lLLVMNaClBitWriter -lLLVMNaClTransforms -lLLVMNaClAnalysis -lLLVMNaClBitReader \
--lLLVMCppBackendCodeGen -lLLVMCppBackendInfo \
+-lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser \
 -lLLVMMCJIT -lLLVMJIT -lLLVMRuntimeDyld -lLLVMExecutionEngine -lLLVMCodeGen -lLLVMObjCARCOpts -lLLVMScalarOpts \
 -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis -lLLVMTarget \
--lLLVMObject -lLLVMCore -lLLVMSupport -lLLVMX86AsmParser -lLLVMX86Disassembler \
--lLLVMMC -lLLVMMCDisassembler -lLLVMMCParser -lLLVMCodeGen \
+-lLLVMObject -lLLVMCore -lLLVMSupport \
+-lLLVMMC \
 -lrt -lzdl -lm -lbfd -liberty
 LDFLAGS+=$(LDLIBS)
 

@@ -11,16 +11,16 @@ RANLIB=${ARCH}-ranlib
 CXXFLAGS=-Wall -Wno-long-long -msse4.1 -m64 -fno-exceptions -fno-rtti
 
 FLAG?=r
-ifneq ($(FLAG),d)
-	BUILD_DIR=build
-	OUTPUT_DIR=Release
+ifeq ($(FLAG),d)
+	BUILD_DIR=build_debug
+	OUTPUT_DIR=Debug+Asserts
 
 	LLVM_DIR=/home/zvm/git/llvm-nacl
 	LLVM_BUILD_DIR=$(LLVM_DIR)/$(BUILD_DIR)
 	CLANG_BUILD_DIR=$(LLVM_DIR)/tools/clang
 	CLANG_DIR=$(LLVM_DIR)/tools/clang
 
-	LDLIBS=-L${LLVM_DIR} -L${LLVM_BUILD_DIR} _L${CLANG_DIR} _L${CLANG_BUILD_DIR}
+	LDLIBS=-L${LLVM_DIR} -L${LLVM_BUILD_DIR}/${OUTPUT}/lib -L${CLANG_DIR} -L${CLANG_BUILD_DIR}/${OUTPUT}/lib
 endif
 
 ifeq ($(FLAG), d)
@@ -35,19 +35,15 @@ CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC
 
 LDLIBS+=-Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
 -lclangFrontendTool -lclangFrontend -lclangSerialization -lclangDriver -lclangCodeGen -lclangParse \
--lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
--lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
--lclangARCMigrate \
--lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMIRReader -lLLVMInstrumentation \
+-lclangAnalysis \
+-lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMInstrumentation \
 -lLLVMAsmParser -lLLVMLinker -lLLVMipo -lLLVMVectorize -lLLVMBitWriter -lLLVMBitReader \
 -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils \
--lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser -lLLVMInterpreter  \
--lLLVMNaClBitWriter -lLLVMNaClTransforms -lLLVMNaClAnalysis -lLLVMNaClBitReader \
--lLLVMCppBackendCodeGen -lLLVMCppBackendInfo \
+-lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser \
 -lLLVMMCJIT -lLLVMJIT -lLLVMRuntimeDyld -lLLVMExecutionEngine -lLLVMCodeGen -lLLVMObjCARCOpts -lLLVMScalarOpts \
 -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis -lLLVMTarget \
--lLLVMObject -lLLVMCore -lLLVMSupport -lLLVMX86AsmParser -lLLVMX86Disassembler \
--lLLVMMC -lLLVMMCDisassembler -lLLVMMCParser -lLLVMCodeGen \
+-lLLVMObject -lLLVMCore -lLLVMSupport \
+-lLLVMMC \
 -lrt -lzdl -lm -lbfd -liberty -lgtest
 
 ZVM_PREFIX_ABSPATH = $(abspath $(ZVM_PREFIX))
