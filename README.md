@@ -23,10 +23,10 @@ Make sure you have ZVM_PREFIX set.
         git clone https://github.com/zerovm/binutils
         cd binutils
         cd bfd
-        ./configure --target=x86_64-nacl --disable-werror
+        ./configure --host=x86_64-nacl --disable-werror --prefix=$ZVM_PREFIX --exec-prefix=$ZVM_PREFIX/x86_64-nacl
         make
         cp libbfd.a $ZVM_PREFIX/x86_64-nacl/lib/
-        cp bfd.h ../bfdlink.h $ZVM_PREFIX/x86_64-nacl/include/ 
+        cp bfd.h ../include/bfdlink.h $ZVM_PREFIX/x86_64-nacl/include/ 
 
 3. *LLVM + Clang*
 
@@ -51,14 +51,27 @@ Make sure you have ZVM_PREFIX set.
     make
     make install
 
-# terasort/wordcount
+# MapReduce samples
 
 Make sure _BFD_, _LLVM_, _libjit_, _libzdl_ are installed and could be found
 in $ZVM\_PREFIX/x86\_64-nacl dir.
 
+## terasort
+
+*Known issue*: works well when SINGLE_NODE_INPUT_RECORDS_COUNT<1000000, otherwise map node could crash somewhere.
+
     cd terasort
     make
     ./start.sh
+
+## wordcount
+
+*Known issue*: working sample, crashing at exit. Unfortunately,
+
+    cd wordcount
+    make
+    ./mr_start.sh
+
 
 
 
