@@ -14,9 +14,13 @@ FLAG?=r
 ifneq ($(FLAG),d)
 	BUILD_DIR=build
 	OUTPUT_DIR=Release
-else
-	BUILD_DIR=build_debug
-	OUTPUT_DIR=Debug+Asserts
+
+	LLVM_DIR=/home/zvm/git/llvm-nacl
+	LLVM_BUILD_DIR=$(LLVM_DIR)/$(BUILD_DIR)
+	CLANG_BUILD_DIR=$(LLVM_DIR)/tools/clang
+	CLANG_DIR=$(LLVM_DIR)/tools/clang
+
+	LDLIBS=-L${LLVM_DIR} -L${LLVM_BUILD_DIR} _L${CLANG_DIR} _L${CLANG_BUILD_DIR}
 endif
 
 ifeq ($(FLAG), d)
@@ -25,18 +29,11 @@ else
   CXXFLAGS+=-DNDEBUG
 endif
 
-LLVM_DIR=/home/zvm/git/llvm-nacl
-LLVM_BUILD_DIR=$(LLVM_DIR)/$(BUILD_DIR)
-CLANG_BUILD_DIR=$(LLVM_DIR)/tools/clang
-CLANG_DIR=$(LLVM_DIR)/tools/clang
 
-CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS \
--I$(LLVM_DIR)/include -I$(LLVM_BUILD_DIR)/include \
--I$(CLANG_DIR)/include -I$(CLANG_BUILD_DIR)/include \
--I$(LLVM_BUILD_DIR)/tools/clang/include -I$(ZVM_PREFIX_ABSPATH)/include
 
-LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib -L$(CLANG_BUILD_DIR)/$(OUTPUT_DIR)/lib \
--L../libzdl -Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
+CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+
+LDLIBS+=-Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
 -lclangFrontendTool -lclangFrontend -lclangSerialization -lclangDriver -lclangCodeGen -lclangParse \
 -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
 -lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
