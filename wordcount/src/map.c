@@ -106,6 +106,7 @@ int main(int argc, char **argv){
     function_ptr function = (function_ptr) ptr;
     function(&mr_if);
     res = MapNodeMain(&mr_if, &chan_if); /*start map node*/
+    shutdown();
 
     /*mapreduce finished: map job complete*/
     CloseChannels(&chan_if);

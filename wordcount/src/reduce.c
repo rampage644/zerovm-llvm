@@ -75,6 +75,7 @@ int main(int argc, char **argv){
     function_ptr function = (function_ptr) ptr;
     function(&mr_if);
     res = ReduceNodeMain(&mr_if, &chan_if); /*start reduce node*/
+    shutdown();
 
     WRITE_LOG("complete---------------------");
 

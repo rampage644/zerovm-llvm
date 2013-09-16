@@ -66,8 +66,6 @@ in $ZVM\_PREFIX/x86\_64-nacl dir.
 
 ## wordcount
 
-*Known issue*: working sample, crashing at exit. Unfortunately,
-
     cd wordcount
     make
     ./mr_start.sh
