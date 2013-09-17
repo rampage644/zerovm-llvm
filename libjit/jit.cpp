@@ -88,9 +88,8 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
   // if no execution engine is present, create new one
   if (!EE)
   {
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmPrinters();
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
     Ctx.reset(new llvm::LLVMContext());
 
     llvm::sys::Path Path = GetExecutablePath("clang");

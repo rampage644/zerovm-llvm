@@ -35,7 +35,9 @@ CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC
 
 LDLIBS+=-Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
 -lclangFrontendTool -lclangFrontend -lclangSerialization -lclangDriver -lclangCodeGen -lclangParse \
--lclangAnalysis \
+-lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
+-lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
+-lclangARCMigrate \
 -lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMInstrumentation \
 -lLLVMAsmParser -lLLVMLinker -lLLVMipo -lLLVMVectorize -lLLVMBitWriter -lLLVMBitReader \
 -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils \
