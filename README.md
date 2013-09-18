@@ -23,7 +23,7 @@ Make sure you have ZVM_PREFIX set.
         git clone https://github.com/zerovm/binutils
         cd binutils
         cd bfd
-        ./configure --host=x86_64-nacl --disable-werror --prefix=$ZVM_PREFIX --exec-prefix=$ZVM_PREFIX/x86_64-nacl
+        ./configure --host=x86_64-nacl --disable-werror --prefix=$ZVM_PREFIX/x86_64-nacl --exec-prefix=$ZVM_PREFIX/x86_64-nacl
         make
         make install
 
