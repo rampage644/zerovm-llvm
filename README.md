@@ -14,7 +14,7 @@ Make sure you have ZVM_PREFIX set.
 
 1. *Google test*
 
-        git clone https://github.com/zerovm/zerovm
+        git clone https://github.com/zerovm/zrt
         cd lib/gtest
         cp libgtest.a $ZVM_PREFIX/x86_64-nacl/lib
 
@@ -25,8 +25,7 @@ Make sure you have ZVM_PREFIX set.
         cd bfd
         ./configure --host=x86_64-nacl --disable-werror --prefix=$ZVM_PREFIX --exec-prefix=$ZVM_PREFIX/x86_64-nacl
         make
-        cp libbfd.a $ZVM_PREFIX/x86_64-nacl/lib/
-        cp bfd.h ../include/bfdlink.h $ZVM_PREFIX/x86_64-nacl/include/ 
+        make install
 
 3. *LLVM + Clang*
 

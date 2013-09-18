@@ -38,7 +38,6 @@ done
 #run last reduce node
 echo /usr/bin/time ${SETARCH} ${ZEROVM} -PQs -Mmanifest/reduce"$REDUCE_LAST".manifest
 /usr/bin/time ${SETARCH} ${ZEROVM} -PQs -Mmanifest/reduce"$REDUCE_LAST".manifest >> ${ZVM_REPORT}
-#zgdb reduce.nexe
 
 
 ./ns_stop.sh
