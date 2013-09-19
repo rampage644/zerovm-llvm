@@ -2,7 +2,7 @@
 
 LLVM-based demos, samples and libraries for ZeroVM.
 
-# Requisitions
+# Prerequisitions
 
 ## Environment
 
@@ -56,8 +56,6 @@ Make sure _BFD_, _LLVM_, _libjit_, _libzdl_ are installed and could be found
 in $ZVM\_PREFIX/x86\_64-nacl dir.
 
 ## terasort
-
-*Known issue*: works well when SINGLE_NODE_INPUT_RECORDS_COUNT<1000000, otherwise map node could crash somewhere.
 
     cd terasort
     make
