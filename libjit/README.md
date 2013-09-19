@@ -3,13 +3,10 @@ libjit
 
 ## Getting the source
 
-`git clone https://github.com/rampage644/zerovm-llvm`
-
-`cd zerovm-llvm`
-
-`cd libjit`
-
-`make`
+    git clone https://github.com/rampage644/zerovm-llvm
+    cd zerovm-llvm
+    cd libjit
+    make
 
 ## Overview
 

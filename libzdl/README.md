@@ -43,6 +43,13 @@ include whole static library.
     cd libzdl
     make
 
+Make sure you've added nexe image as /dev/self:
+
+    cat your_nexe.manifest:
+    ...
+    Channel = abs_path_to_your_nexe.nexe, /dev/self, 3, 1, 99999999, 99999999, 0, 0
+    ...
+
 Next, link -lzdl to your project instead (or before) -ldl.
 
 ## Dependencies
