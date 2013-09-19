@@ -4,7 +4,7 @@ SCRIPT=$(readlink -f "$0")
 SCRIPT_PATH=`dirname "$SCRIPT"`
 echo $SCRIPT_PATH 
 
-SINGLE_NODE_INPUT_RECORDS_COUNT=10000
+SINGLE_NODE_INPUT_RECORDS_COUNT=5000000
 
 #Generate from template
 MAP_FIRST=1
@@ -20,7 +20,7 @@ COUNTER=$MAP_FIRST
 while [  $COUNTER -le $MAP_LAST ]; do
 #genmanifest
     NAME=map \
-    TIMEOUT=100 \
+    TIMEOUT=500 \
     NODEID=$COUNTER \
     ABS_PATH=$SCRIPT_PATH \
     CHANNELS_INCLUDE=manifest/map.channels.manifest.include \
@@ -44,7 +44,7 @@ COUNTER=$REDUCE_FIRST
 while [  $COUNTER -le $REDUCE_LAST ]; do
 #genmanifest
     NAME=reduce \
-    TIMEOUT=100 \
+    TIMEOUT=500 \
     NODEID=$COUNTER \
     ABS_PATH=$SCRIPT_PATH \
     CHANNELS_INCLUDE=manifest/reduce.channels.manifest.include \

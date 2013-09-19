@@ -1,7 +1,7 @@
 #!/bin/bash
 source ./run.env
 
-rm data/*.res -f
+rm data/*.dat -f
 rm log/* -f
 
 ZVM_REPORT=report.txt
@@ -37,11 +37,16 @@ done
 
 #run last reduce node
 echo /usr/bin/time ${SETARCH} ${ZEROVM} -PQs -Mmanifest/reduce"$REDUCE_LAST".manifest
-/usr/bin/time ${SETARCH} ${ZEROVM} -PQs -Mmanifest/reduce"$REDUCE_LAST".manifest >> ${ZVM_REPORT}
+${SETARCH} ${ZEROVM} -PQs -Mmanifest/reduce"$REDUCE_LAST".manifest >> ${ZVM_REPORT}
 
 
 ./ns_stop.sh
-sleep 1
+
+for job in `jobs -p`
+do
+    wait $job
+done
+
 cat ${ZVM_REPORT}
 
 #test results

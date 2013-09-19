@@ -7,6 +7,9 @@ name=MAP_CHUNK_SIZE, value=100485700
 [args]
 args=map-{NODEID}
 
+[debug]
+verbosity=4
+
 [fstab]
 channel=/dev/include.tar, mountpoint=/, access=ro
 channel=/dev/include_clang.tar, mountpoint=/, access=ro
