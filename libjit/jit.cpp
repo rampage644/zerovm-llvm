@@ -50,6 +50,7 @@ using namespace llvm;
 
 static OwningPtr<llvm::ExecutionEngine> EE;
 static OwningPtr<llvm::LLVMContext> Ctx;
+static std::string error;
 
 extern "C" void shutdown()
 {
@@ -85,6 +86,8 @@ llvm::ExecutionEngine* createMCJIT(llvm::Module* Module, std::string& Error) {
 
 extern "C"  void* getFunctionPointer(const char *filename, const char *function)
 {
+  raw_string_ostream sstream(error);
+  error.clear();
   // if no execution engine is present, create new one
   if (!EE)
   {
@@ -95,7 +98,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
     llvm::sys::Path Path = GetExecutablePath("clang");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
     TextDiagnosticPrinter *DiagClient =
-      new TextDiagnosticPrinter(llvm::nulls(), &*DiagOpts);
+      new TextDiagnosticPrinter(sstream, &*DiagOpts);
 
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagClient);
@@ -113,7 +116,10 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
     Args.push_back("-fsyntax-only");
     OwningPtr<Compilation> C(TheDriver.BuildCompilation(Args));
     if (!C)
+    {
+      sstream << "Can't create Compilation object (TheDriver.BuildCompilation())\n";
       return NULL;
+    }
 
     // FIXME: This is copied from ASTUnit.cpp; simplify and eliminate.
 
@@ -123,6 +129,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
     if (Jobs.size() != 1 || !isa<driver::Command>(*Jobs.begin())) {
       SmallString<256> Msg;
       llvm::raw_svector_ostream OS(Msg);
+      sstream << "Wrong number of compiler jobs (see details below)\n";
       C->PrintJob(OS, C->getJobs(), "; ", true);
       Diags.Report(diag::err_fe_expected_compiler_job) << OS.str();
       return NULL;
@@ -130,6 +137,7 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
 
     const driver::Command *Cmd = cast<driver::Command>(*Jobs.begin());
     if (llvm::StringRef(Cmd->getCreator().getName()) != "clang") {
+      sstream << "No clang job (see details below)\n";
       Diags.Report(diag::err_fe_expected_clang_command);
       return NULL;
     }
@@ -152,12 +160,18 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
     // Create the compilers actual diagnostics engine.
     Clang.createDiagnostics();
     if (!Clang.hasDiagnostics())
+    {
+      sstream << "Can't create diagnostics engine\n";
       return NULL;
+    }
 
     // Create and execute the frontend to generate an LLVM bitcode module.
     OwningPtr<CodeGenAction> Act(new EmitLLVMOnlyAction(Ctx.get()));
     if (!Clang.ExecuteAction(*Act))
+    {
+      sstream <<  "Can't execute frontend action (parsing source, converting to LLVM IR)\n";
       return NULL;
+    }
 
     if (llvm::Module *Module = Act->takeModule())
     {
@@ -166,17 +180,19 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
       std::string Error;
       EE.reset(createMCJIT (Module, Error));
       if (!EE) {
-        llvm::nulls() << "unable to make execution engine: " << Error << "\n";
+        sstream <<  "Unable to make execution engine: " << Error;
         return NULL;
       }
       // compile module, apply memory permissions
       EE->finalizeObject();
-      if (EE)
-      {
-        // retrieve requested function
-        Function* F = Module->getFunction(function);
-        return EE->getPointerToFunction(F);
+      // retrieve requested function
+      Function* F = Module->getFunction(function);
+      if (!F) {
+        sstream << "Function " << function << " couldn't be found in module\n";
+        return NULL;
       }
+
+      return EE->getPointerToFunction(F);
     }
   }
 
@@ -186,9 +202,21 @@ extern "C"  void* getFunctionPointer(const char *filename, const char *function)
   {
     // just find damn function
     Function* F = EE->FindFunctionNamed(function);
-    if (F) return EE->getPointerToFunction(F);
+    if (!F) {
+      sstream << "Function " << function << " couldn't be found in module\n";
+      return NULL;
+    }
+
+    return EE->getPointerToFunction(F);
   }
+
+  sstream << "Unknown error (may be no execution engine is present)\n";
   return NULL;
 }
 
+
+const char* getLastError()
+{
+  return error.data();
+}
 

@@ -19,18 +19,22 @@ It's written in c++ with heavy usage of libLLVM and libClang.
 
 Copy jit.h header file into your project and link with libjit.a.
 
-At this moment library export two dunctions:
+At this moment library export following functions:
 
     void* getFunctionPointer(const char* filename,
                              const char* function);
     void shutdown();
+    const char* getLastError();
 
-Former routine gets filename and function defined in it, compiles whole module,
+
+First routine gets filename and function defined in it, compiles whole module,
 applies read-execute permissions and returns address to function. If something
 goes wrong it returns NULL. Client has to cast void* to function pointer.
 
-Latter routine cleans up everything, controls object desctruction order and releases
+Second routine cleans up everything, controls object desctruction order and releases
 memory. Ignoring it may crash your application or lead to memory leaks.
+
+Last routine returns human-readable error description if `getFunctionPointer` fails.
 
 ## Example
 
@@ -43,6 +47,8 @@ memory. Ignoring it may crash your application or lead to memory leaks.
 Use library with given main.cpp as follows:
 
     void* ptr = getFunctionPointer("main.cpp", "sum");
+    if (!ptr)
+      printf(getLastError());
     ASSERT_NE(ptr, (void*)NULL);
     typedef int (*fptr)(int, int);
     fptr function = (fptr) ptr;
@@ -132,4 +138,3 @@ Client should link with following libs:
 
 1. Add multisource support
 2. Simplify driver usage
-3. Errors reporting

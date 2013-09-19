@@ -19,6 +19,14 @@ void* getFunctionPointer(const char* filename,
 /// Otherwise client app could crash or memory leak
 void shutdown();
 
+/// \brief Returns last error description
+///
+/// Only usabel after getFunctionPointer() call. Should be used to get
+/// human-readable error description after getFunctionPointer() fail.
+///
+/// \returns error description
+const char* getLastError();
+
 #ifdef __cplusplus
 }
 #endif
