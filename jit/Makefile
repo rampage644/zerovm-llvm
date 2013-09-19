@@ -1,44 +1,55 @@
 FLAG=d
 NAME=jit
 
-include ../Makefile.env
+ARCH=x86_64-nacl
+
+CC=${ARCH}-gcc
+AR=${ARCH}-ar
+CXX=${ARCH}-g++
+RANLIB=${ARCH}-ranlib
+
+CXXFLAGS=-Wall -Wno-long-long -msse4.1 -m64
+
+ZVM_PREFIX_ABSPATH = $(abspath $(ZVM_PREFIX))
+ZEROVM=${ZVM_PREFIX_ABSPATH}/bin/zerovm
 
 # switch realease /debug mode
 # possible values are: r for release, d for debug
 
 
-LDLIBS=-L$(LLVM_BUILD_DIR)/$(OUTPUT_DIR)/lib -L$(CLANG_BUILD_DIR)/$(OUTPUT_DIR)/lib \
--L../libzdl -Wl,--whole-archive -lmapreduce -lnetworking -Wl,--no-whole-archive \
+LDLIBS=-ljit \
 -lclangFrontendTool -lclangFrontend -lclangSerialization -lclangDriver -lclangCodeGen -lclangParse \
 -lclangSema -lclangStaticAnalyzerFrontend -lclangStaticAnalyzerCheckers \
 -lclangStaticAnalyzerCore -lclangAnalysis -lclangRewriteFrontend -lclangRewriteCore \
 -lclangARCMigrate \
--lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMIRReader -lLLVMInstrumentation \
+-lclangEdit -lclangAST -lclangLex -lclangBasic -lLLVMInstrumentation \
 -lLLVMAsmParser -lLLVMLinker -lLLVMipo -lLLVMVectorize -lLLVMBitWriter -lLLVMBitReader \
 -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils \
--lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser -lLLVMInterpreter -lLLVMJIT \
--lLLVMNaClBitWriter -lLLVMNaClTransforms -lLLVMNaClAnalysis -lLLVMNaClBitReader \
--lLLVMCppBackendCodeGen -lLLVMCppBackendInfo \
--lLLVMRuntimeDyld -lLLVMExecutionEngine -lLLVMMCJIT -lLLVMCodeGen -lLLVMObjCARCOpts -lLLVMScalarOpts \
+-lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMMCParser \
+-lLLVMMCJIT -lLLVMJIT -lLLVMRuntimeDyld -lLLVMExecutionEngine -lLLVMCodeGen -lLLVMObjCARCOpts -lLLVMScalarOpts \
 -lLLVMInstCombine -lLLVMTransformUtils -lLLVMipa -lLLVMAnalysis -lLLVMTarget \
--lLLVMObject -lLLVMCore -lLLVMSupport -lLLVMX86AsmParser -lLLVMX86Disassembler \
--lLLVMMC -lLLVMMCDisassembler -lLLVMMCParser -lLLVMCodeGen \
--lrt -lzdl -lm -lbfd -liberty 
+-lLLVMObject -lLLVMCore -lLLVMSupport \
+-lLLVMMC -lrt -lzdl -lm -lbfd -liberty
 
-CXXFLAGS+=-D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 # add -g if debugging
 ifeq ($(FLAG), d)
-  CXXFLAGS+=-g
+  CFLAGS+=-g
 else
-  CXXFLAGS+=-DNDEBUG
+  CFLAGS+=-DNDEBUG
 endif
 
-#OBJECTS := $(patsubst %.cpp,%.o, $(wildcard *.cpp))
-OBJECTS := jit.o dump_listener.o
+OBJECTS := main.o
+
+all: $(NAME).nexe
+	python tests.py
 
 $(NAME).nexe: $(OBJECTS)
 	@echo "Compiling $(NAME).nexe"
-	$(CXX) -o $(NAME).nexe $(OBJECTS) $(CXXFLAGS) $(LDLIBS) -v
+	$(CC) -o $(NAME).nexe $(OBJECTS) $(CFLAGS) $(LDLIBS)
+
+clean:
+	@rm $(NAME).nexe 2>/dev/null || true
+	@rm *.o *.conf *.manifest stdout* stderr* *.log 2>/dev/null || true
 
 
 	
